@@ -1,234 +1,216 @@
-# CSC2104 Object Oriented Programming — Comprehensive Viva Guide
+# CSC2104 Object Oriented Programming — Comprehensive Viva Voce Guide
 
 **Course:** CSC2104 Object Oriented Programming  
 **Institution:** Manipal University Jaipur — Department of Computer Science & Engineering  
 **Project:** Smart Traffic Management and Emergency Vehicle Prioritization Simulator  
 
-This guide provides targeted questions and simple, clear, student-friendly model answers covering the theoretical concepts and practical implementation of your university mini-project.
-
-> **Study Guide Note:**
-> * **Questions 1–11:** Cover Object-Oriented Programming pillars, language fundamentals, validation, and encapsulation implemented in **Phase 2 (Domain Models)**.
-> * **Questions 12–23:** Cover advanced curriculum topics (Exception Handling, File I/O, Multithreading, Synchronization, and Simulation Logic) scheduled for upcoming development phases (Phases 3–6).
+This guide provides targeted questions, clear explanations, and natural, beginner-friendly model answers covering every aspect of the project for your university viva voce examination.
 
 ---
 
-## 1. Core Object-Oriented Programming (OOP) Pillars
+## 1. Java Fundamentals
 
-### Q1: What are the four fundamental pillars of Object-Oriented Programming, and how does your project demonstrate each?
-> **Answer:**
-> 1. **Encapsulation:** Binding data and methods into a single class while restricting direct external access.  
->    *In Project:* Instance variables in `Vehicle`, `Road`, and `TrafficSignal` are `private`. Access is controlled through `public` getters, setters, and operational methods (`addVehicle()`, `changeColor()`).
-> 2. **Inheritance:** Code reusability where child classes derive properties and methods from a parent class.  
->    *In Project:* Subclasses `Car`, `Bike`, `Bus`, and `EmergencyVehicle` inherit common attributes (`id`, `speed`, `waitingTime`) from abstract class `Vehicle`.
-> 3. **Polymorphism:** The ability of different objects to respond to the same method invocation in distinct ways.  
->    *In Project:* Runtime dynamic dispatch when `vehicle.displayInfo()` or `vehicle.calculatePriority()` is called on a collection of `Vehicle` references.
-> 4. **Abstraction:** Exposing only essential interface details while hiding internal complexities.  
->    *In Project:* `abstract class Vehicle` defines a template without specifying concrete vehicle details; `interface EmergencyCapable` specifies emergency behaviors (`activateSiren()`).
+### Q1: What is Java, and why is it called "Platform Independent"?
+> **Answer:**  
+> "Java is a class-based, object-oriented programming language. It is platform independent because Java source code (`.java`) is compiled by `javac` into bytecode (`.class`), which runs on any operating system that has a Java Virtual Machine (JVM). The philosophy is *'Write Once, Run Anywhere'*."
 
----
+### Q2: What is the difference between JDK, JRE, and JVM?
+> **Answer:**  
+> "• **JVM (Java Virtual Machine):** The runtime engine that executes compiled Java bytecode.  
+> • **JRE (Java Runtime Environment):** Includes the JVM plus the standard Java libraries needed to run programs.  
+> • **JDK (Java Development Kit):** The complete software package for developers, containing the JRE, compiler (`javac`), archiver (`jar`), and debugger."
 
-### Q2: Why did you make `Vehicle` an `abstract class` instead of an `interface`?
-> **Answer:**
-> An **abstract class** is used because all vehicles share common mutable state (`id`, `speed`, `arrivalTime`, `waitingTime`) and non-trivial shared methods (`getId()`, `incrementWaitingTime()`, `getSpeed()`).  
-> In Java, an interface cannot maintain instance fields (its fields are strictly `public static final` constants). Since every vehicle needs to store its own independent speed, arrival time, and waiting time, an abstract base class is the correct design.
+### Q3: What is the difference between Primitive types and Reference types?
+> **Answer:**  
+> "Primitive types (like `int`, `boolean`, `double`) store raw values directly on the stack. Reference types (like `Vehicle`, `String`, `ArrayList`) store the memory address of an object allocated on the heap."
 
----
+### Q4: What does `public static void main(String[] args)` mean?
+> **Answer:**  
+> "• `public`: Accessible from anywhere by the JVM.  
+> • `static`: Can be called without creating an instance of the class first.  
+> • `void`: Returns no value.  
+> • `main`: The standardized entry point method name recognized by the JVM.  
+> • `String[] args`: Array of command-line text arguments passed into the program."
 
-### Q3: Why did you create an interface `EmergencyCapable` instead of putting siren methods in `Vehicle`?
-> **Answer:**
-> To adhere to the **Interface Segregation Principle**:
-> * Standard vehicles (`Car`, `Bike`, `Bus`) do not have sirens or urgency levels. Putting siren methods in the base `Vehicle` class would force regular cars to inherit methods they cannot use.
-> * An interface represents a capability. By defining `EmergencyCapable`, only emergency units (`Ambulance`, `FireTruck`) implement siren operations.
-
----
-
-### Q4: Explain the difference between Method Overloading and Method Overriding with examples from your project.
-> **Answer:**
-> * **Method Overloading (Compile-Time Polymorphism):** Defining methods in the same class with the same name but different parameter lists.  
->   *Example in Project:* In `Road.java`:
->   ```java
->   public void addVehicle(Vehicle v) { ... }
->   public void addVehicle(String id, int speed) { ... }
->   ```
-> * **Method Overriding (Runtime Polymorphism):** A subclass provides its own specific implementation for a method already defined in its superclass.  
->   *Example in Project:* `Vehicle` declares `abstract void displayInfo();`, and `Car` and `Ambulance` override it with their own unique printouts.
+### Q5: What is the difference between `==` and `.equals()`?
+> **Answer:**  
+> "In Java, `==` compares primitive values or checks if two object references point to the exact same memory address. `.equals()` is a method meant to compare the actual logical content or attributes of two objects."
 
 ---
 
-### Q5: What is Dynamic Method Dispatch (Runtime Polymorphism) and how does it work?
-> **Answer:**
-> It is the mechanism by which a call to an overridden method is resolved at runtime rather than compile-time.  
-> When a superclass reference variable holds a subclass object (e.g., `Vehicle v = new Ambulance("AMB-1", 70);`), calling `v.calculatePriority()` executes the `Ambulance` class's overridden version. The JVM uses the object's method table (`vtable`) on the heap to look up the correct implementation at runtime.
+## 2. Core OOP Concepts in This Project
+
+### Q6: What are the four fundamental pillars of OOP, and where are they in your code?
+> **Answer:**  
+> "1. **Encapsulation:** Protecting internal object state. In `Vehicle`, `Road`, and `TrafficSignal`, fields are `private` and accessed only via getters/setters or synchronized operations.  
+> 2. **Inheritance:** Reusing code in an *is-a* relationship. `Car extends Vehicle`, `Ambulance extends EmergencyVehicle`.  
+> 3. **Polymorphism:** Handling different objects uniformly. In `Road.java`, `ArrayList<Vehicle>` holds cars, bikes, and ambulances, dynamically invoking `v.displayInfo()` and `v.calculatePriority()` at runtime.  
+> 4. **Abstraction:** Hiding complex implementation details. `abstract class Vehicle` defines a common blueprint without concrete details; `interface EmergencyCapable` specifies emergency siren operations."
+
+### Q7: Why did you use an `abstract class` for `Vehicle` instead of an `interface`?
+> **Answer:**  
+> "Because all vehicles share common mutable state (`id`, `speed`, `waitingTime`) and concrete methods (`getId()`, `setSpeed()`, `incrementWaitingTime()`). In Java, an interface cannot have instance variables (only `public static final` constants). Since every vehicle needs its own mutable speed and waiting counter, an abstract class is required."
+
+### Q8: Why did you create the interface `EmergencyCapable`?
+> **Answer:**  
+> "To follow the **Interface Segregation Principle**. Regular vehicles like cars and bikes do not have sirens or medical urgency ratings. If we put siren methods inside `Vehicle`, every car would be forced to inherit them. By creating `EmergencyCapable`, only emergency vehicles implement siren operations."
+
+### Q9: Where does your project demonstrate Multilevel Inheritance?
+> **Answer:**  
+> "In the 3-level hierarchy:  
+> `Vehicle` (Level 1: Base vehicle) &rarr; `EmergencyVehicle` (Level 2: Abstract emergency responder) &rarr; `Ambulance` (Level 3: Concrete medical vehicle).  
+> In addition, `Ambulance` implements `EmergencyCapable`."
+
+### Q10: What is the difference between Method Overloading and Method Overriding?
+> **Answer:**  
+> "• **Overloading (Compile-Time):** Same method name with different parameter types in the same class. Example: `Road(name, direction)` and `Road(name, direction, maxCapacity)`.  
+> • **Overriding (Runtime):** Subclass provides its own specific implementation of a parent method with the exact same signature. Example: `Ambulance` overrides `displayInfo()` and `calculatePriority()` from `Vehicle`."
+
+### Q11: What is the difference between Inheritance ("is-a") and Composition ("has-a")?
+> **Answer:**  
+> "• `Car extends Vehicle` is an **is-a** relationship (Inheritance).  
+> • `Road` contains a `TrafficSignal` and an `ArrayList<Vehicle>` queue, which is a **has-a** relationship (Composition). A road is not a type of signal; a road *owns* a signal."
 
 ---
 
-### Q6: What is Multilevel Inheritance and where is it in your project?
-> **Answer:**
-> Multilevel inheritance occurs when a derived class inherits from another derived class, forming a chain:
-> $$\text{Vehicle (Base)} \longrightarrow \text{EmergencyVehicle (Derived)} \longrightarrow \text{Ambulance (Subclass)}$$
-> * `Vehicle` provides core properties (`id`, `speed`).
-> * `EmergencyVehicle` adds emergency behavior (`sirenActive`, `urgencyLevel`).
-> * `Ambulance` adds medical properties (`hospitalName`).
+## 3. Project Architecture & Classes
+
+### Q12: Walk me through the flow of the application.
+> **Answer:**  
+> "1. `Main.java` launches the program (either the console simulation or GUI dashboard via `--gui`).  
+> 2. `Intersection` creates the 4 `Road` objects (North, East, South, West), each with a `TrafficSignal`.  
+> 3. `SimulationEngine` manages signal countdowns, round-robin rotation, ambulance preemption, and anti-starvation rules.  
+> 4. `SimulationController` implements `Runnable` to run `engine.tick()` on a background worker thread.  
+> 5. `SimulationEngine.getSnapshot()` generates an immutable `SimulationSnapshot` containing safe freeze-frames of roads and vehicles.  
+> 6. `MainFrame` and `IntersectionPanel` render the visual dashboard from this snapshot on the Swing Event Dispatch Thread (EDT).  
+> 7. `ReportService` formats audit metrics from the snapshot and saves them to `traffic_report.txt`."
+
+### Q13: What does the `SimulationSnapshot` class do, and why is it important?
+> **Answer:**  
+> "In a multithreaded GUI app, if the Swing GUI reads live model objects directly while the background thread is updating them, race conditions and screen tearing occur (e.g. North road is rendered from tick 5, but South from tick 6).  
+> To solve this, `SimulationEngine.getSnapshot()` captures a complete, immutable freeze-frame of all metrics, roads, signals, and queues in a single `synchronized` call. The GUI renders exclusively from this safe snapshot without touching live model objects."
+
+### Q14: How does vehicle injection work safely?
+> **Answer:**  
+> "In `MainFrame`, when a user clicks 'Add Vehicle', the GUI calls `engine.addVehicle(approachIndex, vehicle)`. This method is `synchronized` on the engine, meaning it cannot collide with an active `engine.tick()` on the background thread. It safely adds the vehicle to the road's queue or rejects it if full."
 
 ---
 
-### Q7: Explain "Inheritance vs Composition" ("is-a" vs "has-a") in your project.
-> **Answer:**
-> * **Inheritance ("is-a"):** Used when a class is genuinely a specialized version of another.  
->   *Example:* A `Car` **is-a** `Vehicle`.
-> * **Composition ("has-a"):** Used when a class contains or coordinates other classes.  
->   *Example:* A `Road` **has-a** `TrafficSignal` and a list of `Vehicle`s. An `Intersection` **has-a** set of 4 `Road`s.  
-> *Composition is preferred here because a road is not a type of signal; it contains and controls a signal.*
+## 4. Traffic Simulation Logic & Algorithms
+
+### Q15: What is the round-robin traffic cycle in your project?
+> **Answer:**  
+> "Signals cycle clockwise: **NORTH &rarr; EAST &rarr; SOUTH &rarr; WEST &rarr; repeat**.  
+> The simulator enforces a single-green invariant: exactly one road is GREEN at any time while the other three are RED. When green time expires, the signal transitions: **GREEN &rarr; YELLOW (2 seconds) &rarr; RED &rarr; next road GREEN**."
+
+### Q16: How does the emergency preemption algorithm work?
+> **Answer:**  
+> "On every tick, `SimulationEngine` checks if an emergency vehicle (ambulance) is waiting on any incoming road.  
+> If an ambulance is detected on another road and no road is starving:  
+> 1. The active green road's timer is curtailed to **YELLOW** immediately, allowing moving vehicles to clear the junction safely (no abrupt red cuts).  
+> 2. Once YELLOW finishes and turns RED, the road with the **highest urgency ambulance (levels 1–5)** is granted **GREEN** immediately."
+
+### Q17: What is the Emergency Vehicle Queue Priority rule?
+> **Answer:**  
+> "Inside `Road.removeVehicle()`, instead of strictly removing the vehicle at position 0 (FIFO), the method scans the queue. If an ambulance is in line behind normal commuter cars or buses, the ambulance departs first. If multiple ambulances are queued, the one with the highest medical urgency departs first."
+
+### Q18: What is Starvation Prevention, and why is it necessary?
+> **Answer:**  
+> "If ambulances arrive repeatedly, emergency preemption could keep normal cars and buses waiting forever.  
+> To prevent this, `SimulationEngine` tracks waiting time for ordinary commuter vehicles. If any vehicle waits beyond the starvation threshold (default: 20s; configured to 15s in the console demo), ordinary traffic is given priority to clear before further emergency overrides are granted."
 
 ---
 
-## 2. Java Language Fundamentals
+## 5. File Handling & Custom Exceptions
 
-### Q8: What is the role of `super()` and `this()` in Java constructors?
-> **Answer:**
-> * `super()` invokes the constructor of the direct parent class to initialize inherited fields. It must be the very first statement in a subclass constructor.
-> * `this()` invokes an overloaded constructor within the same class (constructor chaining) to avoid code duplication.
+### Q19: How did you implement file writing and reading in `ReportService`?
+> **Answer:**  
+> "• **Writing:** Uses `FileWriter`, a 16-bit character stream, to write formatted text summaries to `traffic_report.txt`.  
+> • **Reading:** Uses `FileReader` wrapped in a `BufferedReader` to read the report file line-by-line efficiently using `readLine()` until it returns `null`."
 
----
+### Q20: Why do you need `finally` blocks for stream cleanup?
+> **Answer:**  
+> "If an exception occurs while reading or writing a file, normal execution jumps straight to the `catch` block. The `finally` block is guaranteed to execute regardless of whether an exception occurs, ensuring that file descriptors are never leaked."
 
-### Q9: What are the three meanings of the `final` keyword in Java?
-> **Answer:**
-> 1. **`final` Variable:** Its value cannot be reassigned once initialized (e.g., `final String id;` makes vehicle ID immutable).
-> 2. **`final` Method:** Cannot be overridden by any subclass (protects critical logic).
-> 3. **`final` Class:** Cannot be inherited/extended by any subclass (e.g., `java.lang.String`).
-
----
-
-### Q10: What is the difference between `==` and `.equals()`?
-> **Answer:**
-> * `==` is a relational operator that compares primitive values directly, or compares **memory addresses (references)** when used with objects.
-> * `.equals()` is a method in `java.lang.Object` that can be overridden to compare the **actual content/state** of two objects (e.g., two `Vehicle` objects are considered equal if their `id` strings match).
+### Q21: What is `ReportException`, and why is it a checked exception?
+> **Answer:**  
+> "`ReportException` extends `java.lang.Exception`, making it a checked exception. We use it to encapsulate low-level `IOException`s into a clear, domain-specific exception. Because it is checked, the Java compiler forces calling methods to explicitly handle it with `try-catch` or declare it with `throws`."
 
 ---
 
-### Q11: What is Autoboxing and Unboxing?
-> **Answer:**
-> * **Autoboxing:** Automatic conversion of a primitive data type into its corresponding wrapper class object by the compiler (e.g., `int` to `Integer`).
-> * **Unboxing:** Automatic conversion of a wrapper class object back into its primitive type (e.g., `Integer` to `int`).
+## 6. Multithreading & Concurrency
+
+### Q22: What is the difference between `Thread` and `Runnable`?
+> **Answer:**  
+> "`Thread` is a concrete Java class that represents an operating system thread of execution. `Runnable` is a functional interface with a single method: `void run()`.  
+> Implementing `Runnable` is preferred because Java only allows single class inheritance. If our `SimulationController` extended `Thread`, it could never extend any other class."
+
+### Q23: What is the difference between `start()` and `run()`?
+> **Answer:**  
+> "Calling `run()` simply executes the method synchronously on the current thread, just like any normal method call. Calling `start()` requests the operating system to allocate a new thread call stack and then invokes `run()` asynchronously on that new thread."
+
+### Q24: What does the `volatile` keyword do?
+> **Answer:**  
+> "In multithreading, each CPU core can cache variables in its local L1/L2 cache. Marking `running` and `paused` as `volatile` tells the Java Virtual Machine to always read and write directly to main memory, guaranteeing immediate visibility across threads without stale caching."
+
+### Q25: How do `wait()` and `notifyAll()` implement Pause and Resume?
+> **Answer:**  
+> "When `pause()` is called, the background thread enters a `synchronized (pauseLock)` block and calls `pauseLock.wait()`. This puts the thread to sleep in the OS scheduler with **0% CPU usage** while releasing the lock.  
+> When `resume()` is called, the main thread calls `pauseLock.notifyAll()`, which immediately wakes up the sleeping worker thread to resume ticking."
+
+### Q26: Why is `Thread.stop()` deprecated, and how does your simulator terminate cleanly?
+> **Answer:**  
+> "`Thread.stop()` is deprecated and dangerous because it abruptly kills a thread while it might be halfway through modifying a road queue or traffic light, leaving shared memory permanently corrupted.  
+> Our project uses **cooperative cancellation**: `stop()` sets `running = false` and calls `workerThread.interrupt()` to cleanly wake up sleeping threads, allowing the `run()` loop to exit naturally."
 
 ---
 
-## 3. Exception Handling
+## 7. Java Swing GUI
 
-### Q12: What is the difference between Checked and Unchecked Exceptions?
-> **Answer:**
-> * **Checked Exceptions:** Subclasses of `java.lang.Exception` (excluding `RuntimeException`). The compiler forces you to handle them using `try-catch` or declare them with `throws` (e.g., `IOException`, `FileNotFoundException` in `ReportService`).
-> * **Unchecked Exceptions:** Subclasses of `java.lang.RuntimeException`. They occur during program execution due to logical programming errors (e.g., `IllegalArgumentException`, `NullPointerException`, or custom `InvalidVehicleException`). The compiler does not force you to declare them.
+### Q27: What is the Event Dispatch Thread (EDT), and why is it important?
+> **Answer:**  
+> "The Event Dispatch Thread is the dedicated background thread in Java Swing responsible for handling user input events (clicks, key presses) and painting components. Swing components are **not thread-safe**. Modifying UI labels or repainting panels from background worker threads can cause race conditions, UI freezing, and deadlocks."
 
----
+### Q28: How does `IntersectionPanel` draw the 4-way intersection?
+> **Answer:**  
+> "It overrides `paintComponent(Graphics g)` and casts `g` to `Graphics2D` with anti-aliasing enabled. It draws:  
+> 1. Asphalt roads and the center junction box using rectangles.  
+> 2. Yellow dashed dividing lines and solid white stop lines.  
+> 3. Traffic light boxes with glowing RED, YELLOW, or GREEN bulb circles and countdown timers.  
+> 4. Color-coded vehicle boxes (blue cars, orange buses, purple bikes, and white ambulances with a red cross)."
 
-### Q13: What is the purpose of the `finally` block?
-> **Answer:**
-> The `finally` block always executes after the `try` and `catch` blocks, regardless of whether an exception was thrown, caught, or not thrown at all.  
-> It is primarily used for cleanup tasks, such as closing open file streams (`fileWriter.close()`) or releasing database/network connections.
-
----
-
-### Q14: How did you create and use a Custom Exception in your project?
-> **Answer:**
-> By creating a class that extends `Exception` (for checked) or `RuntimeException` (for unchecked):
-> ```java
-> public class InvalidVehicleException extends RuntimeException {
->     public InvalidVehicleException(String message) {
->         super(message);
->     }
-> }
-> ```
-> We throw it using the `throw` keyword when input invariants are violated (e.g. negative speed or blank ID).
+### Q29: Why do you call `super.paintComponent(g)` first?
+> **Answer:**  
+> "Calling `super.paintComponent(g)` cleans the panel's background before drawing the new frame. If omitted, previous drawings would smear and leave visual artifacts as vehicles move."
 
 ---
 
-## 4. File Handling (I/O)
+## 8. Tricky Viva Questions a Professor Might Ask
 
-### Q15: What is the difference between Character Streams and Byte Streams in Java?
-> **Answer:**
-> * **Character Streams (`FileReader`, `FileWriter`, `PrintWriter`):** Process data as 16-bit Unicode characters. Ideal for reading and writing human-readable text files like our simulation report `traffic_report.txt`.
-> * **Byte Streams (`FileInputStream`, `FileOutputStream`):** Process data as raw 8-bit bytes. Ideal for binary data, images, audio, or serialized object files.
+### Q30: "Can you create an instance of an abstract class using `new`?"
+> **Answer:**  
+> "No, abstract classes cannot be instantiated directly with `new`. They can only be instantiated through their concrete subclasses (e.g. `new Car(...)`, `new Ambulance(...)`)."
 
----
+### Q31: "Why don't you have a `destructor` in Java like C++?"
+> **Answer:**  
+> "Java does not have destructors because memory management is automated. The JVM has an automatic **Garbage Collector (GC)** that tracks unreferenced objects on the heap and reclaims their memory automatically."
 
-### Q16: How do you save the simulation report to a file?
-> **Answer:**
-> In `ReportService.java`, we use `FileWriter` wrapped inside a `PrintWriter`:
-> ```java
-> try (PrintWriter writer = new PrintWriter(new FileWriter("traffic_report.txt"))) {
->     writer.println("=== Traffic Simulation Report ===");
->     writer.println("Total Vehicles Processed: " + stats.getTotalProcessed());
->     writer.println("Average Waiting Time: " + stats.getAverageWaitingTime() + " s");
-> } catch (IOException e) {
->     System.out.println("Error saving report: " + e.getMessage());
-> }
-> ```
-> Using the **try-with-resources** statement guarantees that the writer is automatically closed and flushed even if an `IOException` occurs.
+### Q32: "What is defensive copying, and where did you use it?"
+> **Answer:**  
+> "Defensive copying is returning a new copy of an internal collection rather than a direct reference to the original collection.  
+> In `Road.java`, `getVehicles()` returns `new ArrayList<>(queue)`. If outside code calls `.clear()` on the returned list, the road's actual queue remains completely untouched."
 
----
+### Q33: "What happens if an exception is thrown in a `try` block before `writer.close()`?"
+> **Answer:**  
+> "If `writer.close()` were in the `try` block, it would be skipped when an exception occurs, leaking the file handle. Because we placed `writer.close()` inside the `finally` block, it is guaranteed to execute regardless of whether an exception was thrown."
 
-## 5. Multithreading & Synchronization
+### Q34: "Can a constructor be `final`, `static`, or `abstract`?"
+> **Answer:**  
+> "No:  
+> • Not `final`: Constructors are not inherited, so they cannot be overridden.  
+> • Not `static`: Constructors belong to a specific instance being initialized.  
+> • Not `abstract`: Constructors must have a concrete body to initialize object fields."
 
-### Q17: Why did you implement `Runnable` instead of extending `Thread` for `SimulationEngine`?
-> **Answer:**
-> 1. Java does not support multiple class inheritance. If `SimulationEngine` extends `Thread`, it cannot inherit from any other useful base class.
-> 2. Implementing `Runnable` separates the task (the simulation logic) from the execution runner (the `Thread`), which is a cleaner design principle.
-
----
-
-### Q18: What is the difference between calling `thread.start()` and `thread.run()`?
-> **Answer:**
-> * `thread.start()` creates a brand-new call stack and causes the JVM to run the `run()` method asynchronously on a new operating system thread.
-> * `thread.run()` simply calls the method synchronously on the **current existing thread** without starting any new thread of execution.
-
----
-
-### Q19: Why does the simulation need multithreading? What happens if you run it without threads?
-> **Answer:**
-> In a graphical Java application, the user interface runs on the **Swing Event Dispatch Thread (EDT)**.  
-> If the simulation's continuous while-loop (`while(running)`) runs on the EDT, the thread becomes blocked. The GUI will freeze completely—buttons will not click, the window cannot be moved or resized, and screen repainting will halt.  
-> Running `SimulationEngine` on a separate background thread allows the simulation to advance continuously while the UI remains responsive.
-
----
-
-### Q20: What is a Race Condition, and how do you prevent it using `synchronized`?
-> **Answer:**
-> A **race condition** occurs when two or more threads concurrently access and modify shared data, leading to unpredictable or corrupted state (e.g., the UI thread adds a vehicle while the simulation thread removes one).  
-> We prevent this by marking queue operations `synchronized`:
-> ```java
-> public synchronized void addVehicle(Vehicle v) { ... }
-> public synchronized Vehicle removeVehicle() { ... }
-> ```
-> Only one thread can hold the road's intrinsic lock (monitor) at any given instant.
-
----
-
-### Q21: How do you stop a thread safely without using deprecated methods like `thread.stop()`?
-> **Answer:**
-> `Thread.stop()` is deprecated because it abruptly terminates threads while they may hold locks, leaving shared data in an inconsistent state.  
-> Instead, we use a **`volatile boolean running`** flag:
-> ```java
-> public void stopSimulation() {
->     this.running = false;
-> }
-> ```
-> In the `run()` method, the loop periodically checks `while (running)`. When `running` becomes `false`, the loop exits gracefully, releases locks, and terminates the thread cleanly. The `volatile` keyword ensures immediate visibility across CPU caches.
-
----
-
-## 6. Project-Specific Simulation Logic
-
-### Q22: How does your emergency vehicle prioritization algorithm work?
-> **Answer:**
-> 1. Under normal conditions, traffic signals cycle in a round-robin schedule: North &rarr; East &rarr; South &rarr; West. Only one road is GREEN at any time; the other three are RED.
-> 2. On every clock tick, the engine inspects all incoming road queues using `road.hasEmergencyVehicle()`.
-> 3. If an `Ambulance` is detected on a road, normal cycling is immediately interrupted.
-> 4. The road with the ambulance is switched to **GREEN**, and all other three roads are forced to **RED**.
-> 5. Once the ambulance crosses the intersection, the system resumes the normal cyclic schedule.
-
----
-
-### Q23: How do you prevent standard vehicles from waiting indefinitely (starvation) if multiple ambulances arrive?
-> **Answer:**
-> We track each vehicle's `waitingTime`. If a regular commuter vehicle's waiting time exceeds a threshold (e.g. 30 seconds), its priority increases, ensuring that normal traffic queues are flushed before accepting further non-critical preemption overrides.
+### Q35: "Why did you use `Collections.unmodifiableList()` in `SimulationSnapshot`?"
+> **Answer:**  
+> "To guarantee immutability. If any caller tries to call `.add()` or `.remove()` on the snapshot's roads or vehicles list, Java immediately throws an `UnsupportedOperationException`. This guarantees that snapshot data cannot be modified by the GUI or any other thread."

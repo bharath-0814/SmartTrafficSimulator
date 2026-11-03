@@ -1,15 +1,13 @@
 package com.traffic.service;
 
 import com.traffic.engine.SimulationEngine;
-import com.traffic.model.Intersection;
-import com.traffic.model.Road;
-import com.traffic.model.Vehicle;
+import com.traffic.engine.SimulationSnapshot;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Service responsible for generating, writing, and reading simulation audit reports.
@@ -22,8 +20,9 @@ import java.util.ArrayList;
  *    - Demonstrates explicit try, catch, and finally blocks.
  *    - Performs guaranteed resource cleanup in the finally block.
  *    - Wraps low-level IOExceptions into a meaningful checked custom ReportException.
- * 3. Decoupling:
+ * 3. Decoupling & Thread Safety:
  *    - Keeps file-handling completely outside the SimulationEngine and domain models.
+ *    - Consumes immutable {@link SimulationSnapshot} objects to ensure thread-safe reporting.
  */
 public class ReportService {
 
@@ -40,8 +39,8 @@ public class ReportService {
     }
 
     /**
-     * Formats and writes simulation statistics to the specified file path.
-     * Demonstrates try, catch, and finally blocks for guaranteed resource cleanup.
+     * Formats and writes simulation statistics from an engine to the specified file path.
+     * Extracts an atomic {@link SimulationSnapshot} to prevent concurrent mutation issues.
      *
      * @param engine   The simulation engine containing current metrics.
      * @param filePath The file destination path (e.g., "traffic_report.txt").
@@ -50,6 +49,21 @@ public class ReportService {
     public void generateReport(SimulationEngine engine, String filePath) throws ReportException {
         if (engine == null) {
             throw new IllegalArgumentException("SimulationEngine cannot be null.");
+        }
+        generateReport(engine.getSnapshot(), filePath);
+    }
+
+    /**
+     * Formats and writes simulation statistics from an immutable snapshot to the specified file path.
+     * Demonstrates try, catch, and finally blocks for guaranteed resource cleanup.
+     *
+     * @param snapshot The immutable simulation state snapshot.
+     * @param filePath The file destination path.
+     * @throws ReportException If an I/O error occurs while writing the report.
+     */
+    public void generateReport(SimulationSnapshot snapshot, String filePath) throws ReportException {
+        if (snapshot == null) {
+            throw new IllegalArgumentException("SimulationSnapshot cannot be null.");
         }
         if (filePath == null || filePath.trim().isEmpty()) {
             throw new IllegalArgumentException("File path cannot be null or empty.");
@@ -61,7 +75,7 @@ public class ReportService {
             writer = new FileWriter(filePath);
 
             // Step 2: Format the simulation report contents
-            String reportText = formatReport(engine);
+            String reportText = formatReport(snapshot);
 
             // Step 3: Write report to file
             writer.write(reportText);
@@ -119,18 +133,22 @@ public class ReportService {
                 reportBuilder.append(line).append(System.lineSeparator());
             }
 
+            return reportBuilder.toString();
+
         } catch (IOException e) {
+            // Wrap checked IOException inside our checked domain exception
             throw new ReportException("Failed to read simulation report from: " + filePath, e);
 
         } finally {
-            // Close resources safely in reverse order of creation
+            // Always close streams in finally block in reverse order of opening
             if (bufferedReader != null) {
                 try {
                     bufferedReader.close();
                 } catch (IOException e) {
                     System.err.println("Warning: Failed to close BufferedReader: " + e.getMessage());
                 }
-            } else if (fileReader != null) {
+            }
+            if (fileReader != null) {
                 try {
                     fileReader.close();
                 } catch (IOException e) {
@@ -138,15 +156,13 @@ public class ReportService {
                 }
             }
         }
-
-        return reportBuilder.toString();
     }
 
     /**
-     * Reads and prints the saved simulation report directly to standard console output.
+     * Reads and displays a report to standard output.
      *
-     * @param filePath The file path of the report.
-     * @throws ReportException If an error occurs during reading.
+     * @param filePath Path to the report file.
+     * @throws ReportException If the report file cannot be read.
      */
     public void displayReport(String filePath) throws ReportException {
         String content = readReport(filePath);
@@ -161,15 +177,30 @@ public class ReportService {
     }
 
     /**
-     * Formats simulation statistics into a clean, human-readable text document.
+     * Formats simulation statistics into a clean, human-readable text document from an engine.
      *
      * @param engine The simulation engine to extract metrics from.
      * @return Formatted multi-line string report.
      */
     public String formatReport(SimulationEngine engine) {
-        Intersection intersection = engine.getIntersection();
-        int totalServed = engine.getTotalVehiclesServed();
-        int emergencyServed = engine.getTotalEmergencyVehiclesServed();
+        if (engine == null) {
+            throw new IllegalArgumentException("SimulationEngine cannot be null.");
+        }
+        return formatReport(engine.getSnapshot());
+    }
+
+    /**
+     * Formats simulation statistics from an immutable snapshot into a clean, human-readable text document.
+     *
+     * @param snapshot The immutable simulation state snapshot.
+     * @return Formatted multi-line string report.
+     */
+    public String formatReport(SimulationSnapshot snapshot) {
+        if (snapshot == null) {
+            throw new IllegalArgumentException("SimulationSnapshot cannot be null.");
+        }
+        int totalServed = snapshot.getTotalVehiclesServed();
+        int emergencyServed = snapshot.getTotalEmergencyVehiclesServed();
         int standardServed = totalServed - emergencyServed;
 
         StringBuilder sb = new StringBuilder();
@@ -183,10 +214,10 @@ public class ReportService {
         sb.append("--------------------------------------------------------------------------------\n");
         sb.append("1. SIMULATION EXECUTION METRICS\n");
         sb.append("--------------------------------------------------------------------------------\n");
-        sb.append(String.format("Simulation Duration     : %d seconds (ticks)\n", engine.getTotalTicks()));
-        sb.append(String.format("Configured Green Phase  : %d seconds\n", engine.getGreenDuration()));
-        sb.append(String.format("Configured Yellow Phase : %d seconds\n", engine.getYellowDuration()));
-        sb.append(String.format("Starvation Threshold    : %d seconds (default is 20s)\n", engine.getStarvationThreshold()));
+        sb.append(String.format("Simulation Duration     : %d seconds (ticks)\n", snapshot.getTotalTicks()));
+        sb.append(String.format("Configured Green Phase  : %d seconds\n", snapshot.getGreenDuration()));
+        sb.append(String.format("Configured Yellow Phase : %d seconds\n", snapshot.getYellowDuration()));
+        sb.append(String.format("Starvation Threshold    : %d seconds (default is 20s)\n", snapshot.getStarvationThreshold()));
         sb.append("\n");
 
         sb.append("--------------------------------------------------------------------------------\n");
@@ -202,12 +233,12 @@ public class ReportService {
         sb.append("--------------------------------------------------------------------------------\n");
 
         int totalWaiting = 0;
-        for (int i = 0; i < intersection.getRoadCount(); i++) {
-            Road road = intersection.getRoad(i);
+        List<SimulationSnapshot.RoadSnapshot> roads = snapshot.getRoads();
+        for (SimulationSnapshot.RoadSnapshot road : roads) {
             int queueLen = road.getQueueLength();
             totalWaiting += queueLen;
 
-            String ids = formatQueueVehicleIds(road);
+            String ids = formatQueueSnapshotIds(road);
             sb.append(String.format("- %-15s (%-5s) : %2d waiting | %s\n",
                     road.getName(), road.getDirection(), queueLen, ids));
         }
@@ -217,17 +248,18 @@ public class ReportService {
         sb.append("--------------------------------------------------------------------------------\n");
         sb.append("4. INTERSECTION STATE AT COMPLETION\n");
         sb.append("--------------------------------------------------------------------------------\n");
-        sb.append(String.format("Active Approach         : %s\n", engine.getCurrentActiveRoad().getName()));
-        sb.append(String.format("Active Light Color      : %s\n", engine.getCurrentActiveRoad().getSignal().getColor()));
-        sb.append(String.format("Emergency Override Mode : %s\n", (engine.isEmergencyActive() ? "ACTIVE" : "INACTIVE")));
-        sb.append(String.format("Last Engine Event       : %s\n", engine.getLastEventDescription()));
+        SimulationSnapshot.RoadSnapshot activeRoad = snapshot.getActiveRoad();
+        sb.append(String.format("Active Approach         : %s\n", activeRoad != null ? activeRoad.getName() : "None"));
+        sb.append(String.format("Active Light Color      : %s\n", activeRoad != null ? activeRoad.getSignalColor() : "RED"));
+        sb.append(String.format("Emergency Override Mode : %s\n", (snapshot.isEmergencyActive() ? "ACTIVE" : "INACTIVE")));
+        sb.append(String.format("Last Engine Event       : %s\n", snapshot.getLastEventDescription()));
         sb.append("================================================================================\n");
 
         return sb.toString();
     }
 
-    private String formatQueueVehicleIds(Road road) {
-        ArrayList<Vehicle> vehicles = road.getVehicles();
+    private String formatQueueSnapshotIds(SimulationSnapshot.RoadSnapshot road) {
+        List<SimulationSnapshot.VehicleSnapshot> vehicles = road.getVehicles();
         if (vehicles.isEmpty()) {
             return "Queue: (empty)";
         }

@@ -3,7 +3,7 @@
 This document presents the class diagram for the **Smart Traffic Management and Emergency Vehicle Prioritization Simulator** using standard Mermaid UML notation.
 
 > **Status Notice:**  
-> • **All Components Implemented (Phases 2–6):** Core OOP Models (`Vehicle`, `Car`, `Bike`, `Bus`, `EmergencyVehicle`, `Ambulance`, `EmergencyCapable`, `TrafficSignal`, `SignalColor`, `Direction`, `Road`, `Intersection`), `SimulationEngine` console state machine, `ReportService` file handler with custom `ReportException`, `SimulationController` multithreaded runner, and `MainFrame` / `IntersectionPanel` Java Swing graphical dashboard.
+> • **All Components Implemented (Phases 1–6):** Core OOP Models (`Vehicle`, `Car`, `Bike`, `Bus`, `EmergencyVehicle`, `Ambulance`, `EmergencyCapable`, `TrafficSignal`, `SignalColor`, `Direction`, `Road`, `Intersection`), `SimulationEngine` console state machine, `SimulationSnapshot` immutable data transfer object, `ReportService` file handler with custom checked `ReportException`, `SimulationController` multithreaded runner (`Runnable`), and `MainFrame` / `IntersectionPanel` Java Swing graphical dashboard with 52 passing automated tests.
 
 ---
 
@@ -12,7 +12,7 @@ This document presents the class diagram for the **Smart Traffic Management and 
 ```mermaid
 classDiagram
     %% ========================================================
-    %% SECTION A: Implemented Domain Models (Phase 2)
+    %% SECTION A: Domain Models (Phase 2)
     %% ========================================================
 
     class EmergencyCapable {
@@ -74,32 +74,32 @@ classDiagram
     class EmergencyVehicle {
         <<abstract>>
         -boolean sirenActive
-        -int urgencyLevel
-        #EmergencyVehicle(String id, int speed, int urgencyLevel)
+        #EmergencyVehicle(String id, int speed)
         +activateSiren() void
         +deactivateSiren() void
         +isSirenActive() boolean
-        +getUrgencyLevel() int
-        +setUrgencyLevel(int urgencyLevel) void
         +isEmergency() boolean
     }
 
     class Ambulance {
-        -String hospitalName
-        +Ambulance(String id, int speed, int urgencyLevel, String hospitalName)
+        -int urgencyLevel
+        -String destinationHospital
+        +Ambulance(String id, int speed, int urgency, String hospital)
+        +Ambulance(String id, int speed, int urgency)
         +Ambulance(String id, int speed)
-        +getHospitalName() String
-        +setHospitalName(String name) void
+        +getUrgencyLevel() int
+        +getDestinationHospital() String
         +displayInfo() void
         +calculatePriority() int
     }
 
-    Vehicle <|-- Car : Inheritance
-    Vehicle <|-- Bike : Inheritance
-    Vehicle <|-- Bus : Inheritance
-    Vehicle <|-- EmergencyVehicle : Multilevel Level 2
-    EmergencyVehicle <|-- Ambulance : Multilevel Level 3
-    EmergencyCapable <|.. EmergencyVehicle : Implements
+    %% Inheritance & Implementation Hierarchy
+    Vehicle <|-- Car : Inheritance (Single)
+    Vehicle <|-- Bike : Inheritance (Single)
+    Vehicle <|-- Bus : Inheritance (Single)
+    Vehicle <|-- EmergencyVehicle : Inheritance (Hierarchical)
+    EmergencyVehicle <|-- Ambulance : Multilevel Inheritance
+    EmergencyCapable <|.. Ambulance : Implements Interface
 
     class SignalColor {
         <<enumeration>>
@@ -114,9 +114,9 @@ classDiagram
         -int yellowDuration
         -int timer
         -boolean emergencyOverride
-        +TrafficSignal(int greenDuration, int yellowDuration)
-        +TrafficSignal(int greenDuration)
         +TrafficSignal()
+        +TrafficSignal(int greenDuration)
+        +TrafficSignal(int greenDuration, int yellowDuration)
         +getColor() SignalColor
         +changeColor(SignalColor newColor) void
         +switchToGreen() void
@@ -178,6 +178,10 @@ classDiagram
 
     Intersection *-- Road : Composition (has 4 Roads)
 
+    %% ========================================================
+    %% SECTION B: Simulation Engine, Controller & Snapshots
+    %% ========================================================
+
     class SimulationEngine {
         -Intersection intersection
         -int currentGreenIndex
@@ -192,33 +196,65 @@ classDiagram
         +SimulationEngine(Intersection intersection, int green, int yellow, int starvation)
         +tick() void
         +step(int numberOfTicks) void
-        +findHighestUrgencyRoadIndex() int
-        +getHighestUrgencyOnRoad(Road road) int
-        +findStarvedRoadIndex() int
-        +getMaxWaitingTimeOnRoad(Road road) int
-        +printStatus() void
+        +addVehicle(int roadIndex, Vehicle vehicle) boolean
+        +addVehicle(Direction direction, Vehicle vehicle) boolean
+        +getSnapshot() SimulationSnapshot
+        +getIntersection() Intersection
         +getTotalVehiclesServed() int
         +getTotalEmergencyVehiclesServed() int
         +getTotalTicks() int
-        +getLastEventDescription() String
     }
 
-    SimulationEngine o-- Intersection : Coordinates & Simulates
+    SimulationEngine o-- Intersection : Simulates
 
-    class ReportException {
-        +ReportException(String message)
-        +ReportException(String message, Throwable cause)
+    class SimulationSnapshot {
+        -int totalTicks
+        -int totalVehiclesServed
+        -int totalEmergencyVehiclesServed
+        -int currentGreenIndex
+        -int greenDuration
+        -int yellowDuration
+        -int starvationThreshold
+        -boolean emergencyActive
+        -String lastEventDescription
+        -List~RoadSnapshot~ roads
+        +getTotalTicks() int
+        +getTotalVehiclesServed() int
+        +getRoad(int index) RoadSnapshot
+        +getRoad(Direction dir) RoadSnapshot
+        +getActiveRoad() RoadSnapshot
     }
 
-    class ReportService {
-        +generateReport(SimulationEngine engine, String filePath) void
-        +readReport(String filePath) String
-        +displayReport(String filePath) void
-        +formatReport(SimulationEngine engine) String
+    class RoadSnapshot {
+        -String name
+        -Direction direction
+        -SignalColor signalColor
+        -int signalTimer
+        -boolean emergencyOverride
+        -int queueLength
+        -List~VehicleSnapshot~ vehicles
+        +isGreen() boolean
+        +isYellow() boolean
+        +isRed() boolean
+        +getVehicles() List~VehicleSnapshot~
     }
 
-    ReportService ..> SimulationEngine : Reads metrics
-    ReportService ..> ReportException : Throws on I/O error
+    class VehicleSnapshot {
+        -String id
+        -String type
+        -int speed
+        -int waitingTime
+        -boolean emergency
+        -boolean ambulance
+        -int urgencyLevel
+        +getId() String
+        +isAmbulance() boolean
+        +getUrgencyLevel() int
+    }
+
+    SimulationSnapshot *-- RoadSnapshot : Contains
+    RoadSnapshot *-- VehicleSnapshot : Contains
+    SimulationEngine ..> SimulationSnapshot : Produces (Snapshot Factory)
 
     class Runnable {
         <<interface>>
@@ -233,25 +269,41 @@ classDiagram
         -volatile boolean paused
         -Object pauseLock
         +SimulationController(SimulationEngine engine, int tickDelayMs)
-        +SimulationController(SimulationEngine engine)
         +start() void
         +pause() void
         +resume() void
         +stop() void
         +stepOnce() void
-        +join() void
-        +join(long millis) void
         +run() void
         +isRunning() boolean
         +isPaused() boolean
-        +getEngine() SimulationEngine
-        +getTickDelayMs() int
-        +setTickDelayMs(int ms) void
-        +getWorkerThread() Thread
     }
 
     Runnable <|.. SimulationController : Implements
     SimulationController o-- SimulationEngine : Controls & Runs
+
+    %% ========================================================
+    %% SECTION C: Reporting Service & Custom Exception
+    %% ========================================================
+
+    class ReportException {
+        +ReportException(String message)
+        +ReportException(String message, Throwable cause)
+    }
+
+    class ReportService {
+        +generateReport(SimulationEngine engine, String filePath) void
+        +generateReport(SimulationSnapshot snapshot, String filePath) void
+        +readReport(String filePath) String
+        +formatReport(SimulationSnapshot snapshot) String
+    }
+
+    ReportService ..> SimulationSnapshot : Reads immutable snapshot
+    ReportService ..> ReportException : Throws on I/O error
+
+    %% ========================================================
+    %% SECTION D: Swing Graphical User Interface
+    %% ========================================================
 
     class JPanel {
         <<swing>>
@@ -265,7 +317,9 @@ classDiagram
 
     class IntersectionPanel {
         -SimulationEngine engine
+        -SimulationSnapshot currentSnapshot
         +IntersectionPanel(SimulationEngine engine)
+        +setSnapshot(SimulationSnapshot snapshot) void
         +paintComponent(Graphics g) void
     }
 
@@ -276,12 +330,25 @@ classDiagram
         -IntersectionPanel intersectionPanel
         +MainFrame(SimulationController controller)
         +generateReportAction(boolean showDialog) boolean
-        +main(String[] args) void
     }
 
     JPanel <|-- IntersectionPanel : Extends
     JFrame <|-- MainFrame : Extends
     MainFrame *-- IntersectionPanel : Embeds
-    MainFrame o-- SimulationController : Dispatches User Controls
-    IntersectionPanel o-- SimulationEngine : Queries State for 2D Rendering
+    MainFrame o-- SimulationController : Controls
+    MainFrame ..> SimulationSnapshot : Reads on EDT
+    IntersectionPanel ..> SimulationSnapshot : Renders Canvas
 ```
+
+---
+
+## 2. Summary of Key OOP Relationships
+
+| Relationship | UML Notation | Implementation in Project | Explanation |
+| :--- | :---: | :--- | :--- |
+| **Inheritance** | `A <|-- B` | `Vehicle <|-- Car`, `Bike`, `Bus` | `Car` *is-a* `Vehicle`; reuses `id`, `speed`, and `waitingTime`. |
+| **Multilevel Inheritance** | `A <|-- B <|-- C` | `Vehicle <|-- EmergencyVehicle <|-- Ambulance` | 3-tier specialization: base &rarr; emergency responder &rarr; ambulance. |
+| **Interface Realization** | `A <|.. B` | `EmergencyCapable <|.. Ambulance`, `Runnable <|.. SimulationController` | Specifies capability contracts without forcing inheritance coupling. |
+| **Composition** | `A *-- B` | `Road *-- TrafficSignal`, `Intersection *-- Road[4]` | Strong *has-a* ownership. If intersection is destroyed, its roads cease to exist. |
+| **Aggregation / Queue** | `A o-- B` | `Road o-- Vehicle` | Road contains queued vehicles; vehicles exist independently before/after passage. |
+| **Snapshot DTO** | `A ..> B` | `SimulationEngine ..> SimulationSnapshot` | Creates atomic, immutable freeze-frames to insulate the Swing GUI and `ReportService` from concurrency issues. |

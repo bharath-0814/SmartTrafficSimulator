@@ -1,6 +1,7 @@
 package com.traffic.service;
 
 import com.traffic.engine.SimulationEngine;
+import com.traffic.engine.SimulationSnapshot;
 import com.traffic.model.Ambulance;
 import com.traffic.model.Car;
 import com.traffic.model.Direction;
@@ -165,7 +166,8 @@ class ReportServiceTest {
     @Test
     @DisplayName("Test 6: Parameter validation throws IllegalArgumentException for null/empty arguments")
     void testParameterValidation() {
-        assertThrows(IllegalArgumentException.class, () -> reportService.generateReport(null, TEST_REPORT_PATH));
+        assertThrows(IllegalArgumentException.class, () -> reportService.generateReport((SimulationEngine) null, TEST_REPORT_PATH));
+        assertThrows(IllegalArgumentException.class, () -> reportService.generateReport((SimulationSnapshot) null, TEST_REPORT_PATH));
         assertThrows(IllegalArgumentException.class, () -> reportService.generateReport(engine, null));
         assertThrows(IllegalArgumentException.class, () -> reportService.generateReport(engine, "   "));
         assertThrows(IllegalArgumentException.class, () -> reportService.readReport(null));

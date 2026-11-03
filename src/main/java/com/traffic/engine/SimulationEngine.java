@@ -1,5 +1,9 @@
 package com.traffic.engine;
 
+import com.traffic.model.Ambulance;
+import com.traffic.model.Bike;
+import com.traffic.model.Bus;
+import com.traffic.model.Car;
 import com.traffic.model.Direction;
 import com.traffic.model.EmergencyCapable;
 import com.traffic.model.Intersection;
@@ -9,6 +13,7 @@ import com.traffic.model.TrafficSignal;
 import com.traffic.model.Vehicle;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Core Traffic Simulation Engine for the 4-way intersection.
@@ -357,6 +362,104 @@ public class SimulationEngine {
     // Inspection & State Accessors (Thread-safe)
     // =========================================================================
 
+    /**
+     * Safely adds a vehicle to an approach road by index (Thread-safe).
+     * Synchronized on the engine to avoid race conditions with tick().
+     *
+     * @param roadIndex Approach index (0=North, 1=East, 2=South, 3=West).
+     * @param vehicle The vehicle to add.
+     * @return true if vehicle was successfully added, false if road is full or index invalid.
+     */
+    public synchronized boolean addVehicle(int roadIndex, Vehicle vehicle) {
+        if (vehicle == null || roadIndex < 0 || roadIndex >= intersection.getRoadCount()) {
+            return false;
+        }
+        return intersection.getRoad(roadIndex).addVehicle(vehicle);
+    }
+
+    /**
+     * Safely adds a vehicle to an approach road by direction (Thread-safe).
+     *
+     * @param direction Compass direction of the incoming approach road.
+     * @param vehicle The vehicle to add.
+     * @return true if vehicle was successfully added, false if road is full or direction null.
+     */
+    public synchronized boolean addVehicle(Direction direction, Vehicle vehicle) {
+        if (vehicle == null || direction == null) {
+            return false;
+        }
+        Road road = intersection.getRoad(direction);
+        if (road == null) {
+            return false;
+        }
+        return road.addVehicle(vehicle);
+    }
+
+    /**
+     * Captures an atomic, immutable snapshot of the entire simulation state.
+     * Guaranteed to be consistent because all values and queues are read in one
+     * synchronized execution.
+     *
+     * @return Immutable SimulationSnapshot for safe GUI rendering and reporting.
+     */
+    public synchronized SimulationSnapshot getSnapshot() {
+        List<SimulationSnapshot.RoadSnapshot> roadSnapshots = new ArrayList<>();
+        for (int i = 0; i < intersection.getRoadCount(); i++) {
+            Road road = intersection.getRoad(i);
+            TrafficSignal signal = road.getSignal();
+
+            List<SimulationSnapshot.VehicleSnapshot> vehicleSnapshots = new ArrayList<>();
+            ArrayList<Vehicle> vehicles = road.getVehicles();
+            for (Vehicle v : vehicles) {
+                int urgency = 0;
+                if (v instanceof EmergencyCapable) {
+                    urgency = ((EmergencyCapable) v).getUrgencyLevel();
+                }
+                vehicleSnapshots.add(new SimulationSnapshot.VehicleSnapshot(
+                        v.getId(),
+                        v.getClass().getSimpleName(),
+                        v.getSpeed(),
+                        v.getWaitingTime(),
+                        v.isEmergency(),
+                        v instanceof Ambulance,
+                        v instanceof Bus,
+                        v instanceof Bike,
+                        v instanceof Car,
+                        urgency
+                ));
+            }
+
+            roadSnapshots.add(new SimulationSnapshot.RoadSnapshot(
+                    road.getName(),
+                    road.getDirection(),
+                    signal.getColor(),
+                    signal.getTimer(),
+                    signal.isEmergencyOverride(),
+                    road.getMaxCapacity(),
+                    road.getQueueLength(),
+                    vehicleSnapshots
+            ));
+        }
+
+        return new SimulationSnapshot(
+                totalTicks,
+                totalVehiclesServed,
+                totalEmergencyVehiclesServed,
+                currentGreenIndex,
+                greenDuration,
+                yellowDuration,
+                starvationThreshold,
+                isEmergencyActive(),
+                lastEventDescription,
+                roadSnapshots
+        );
+    }
+
+    /**
+     * Returns the underlying Intersection model.
+     * Note: Prefer using getSnapshot() for UI rendering and reporting to avoid
+     * exposing mutable simulation state across threads.
+     */
     public synchronized Intersection getIntersection() {
         return intersection;
     }

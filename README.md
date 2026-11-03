@@ -26,6 +26,7 @@ The application is written in clean, beginner-friendly Java and demonstrates max
 * **File Reports & Custom Exception:** Generates and persists detailed simulation summaries to `traffic_report.txt` using `FileWriter`, reads back with `FileReader` and `BufferedReader`, safely closes resources in `finally` blocks, and handles errors via custom checked `ReportException` *(Phase 4 - Implemented)*.
 * **Multithreading & Thread Lifecycle:** Background simulation worker thread using `SimulationController implements Runnable`, `Thread.sleep()` interval control, safe `pause()` and `resume()` via `wait()` / `notifyAll()`, and safe termination via `stop()` and `join()` without deprecated methods *(Phase 5 - Implemented)*.
 * **Visual Swing GUI Dashboard:** Interactive 2D top-down crossroads canvas rendering asphalt roads, yellow lane dividers, stop lines, glowing traffic lights with countdown timers, vehicle bodies (cars, buses, bikes, ambulances with red cross), real-time control buttons, live metrics, vehicle injection, and report viewer dialog *(Phase 6 - Implemented)*.
+* **Thread-Safe Snapshot Architecture:** Completely decouples background simulation worker threads from the Swing GUI and reporting services using immutable `SimulationSnapshot` data transfer objects, eliminating race conditions, tearing, and deadlocks *(Phase 7 - Implemented & Verified)*.
 
 ---
 
@@ -66,7 +67,7 @@ SmartTrafficSimulator/
     │   └── resources/                        # Icons and configuration assets
     │
     └── test/
-        └── java/com/traffic/                 # JUnit 5 unit tests (46 automated tests pass)
+        └── java/com/traffic/                 # JUnit 5 unit tests (52 automated tests pass)
 ```
 
 ---
@@ -99,7 +100,7 @@ Viva questions and answers: **[docs/viva-questions.md](docs/viva-questions.md)**
   ```
 
 ### Build & Run Tests
-Compile the project and run all automated JUnit 5 tests (46 unit tests):
+Compile the project and run all automated JUnit 5 tests (52 unit tests):
 * **Windows (PowerShell / CMD):**
   ```powershell
   .\mvnw.cmd test

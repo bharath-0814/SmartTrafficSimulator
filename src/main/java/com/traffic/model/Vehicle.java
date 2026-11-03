@@ -36,30 +36,30 @@ public abstract class Vehicle {
         return id;
     }
 
-    public int getSpeed() {
+    public synchronized int getSpeed() {
         return speed;
     }
 
-    public void setSpeed(int speed) {
+    public synchronized void setSpeed(int speed) {
         if (speed < 0) {
             throw new IllegalArgumentException("Vehicle speed cannot be negative: " + speed);
         }
         this.speed = speed;
     }
 
-    public int getWaitingTime() {
+    public synchronized int getWaitingTime() {
         return waitingTime;
     }
 
-    public void setWaitingTime(int waitingTime) {
+    public synchronized void setWaitingTime(int waitingTime) {
         if (waitingTime < 0) {
             throw new IllegalArgumentException("Waiting time cannot be negative: " + waitingTime);
         }
         this.waitingTime = waitingTime;
     }
 
-    // Increments the vehicle's waiting counter by 1 second
-    public void incrementWaitingTime() {
+    // Increments the vehicle's waiting counter by 1 second (Thread-safe)
+    public synchronized void incrementWaitingTime() {
         this.waitingTime++;
     }
 

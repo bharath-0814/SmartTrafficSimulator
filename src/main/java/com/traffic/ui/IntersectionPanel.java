@@ -1,16 +1,9 @@
 package com.traffic.ui;
 
 import com.traffic.engine.SimulationEngine;
-import com.traffic.model.Ambulance;
-import com.traffic.model.Bike;
-import com.traffic.model.Bus;
-import com.traffic.model.Car;
+import com.traffic.engine.SimulationSnapshot;
 import com.traffic.model.Direction;
-import com.traffic.model.Intersection;
-import com.traffic.model.Road;
 import com.traffic.model.SignalColor;
-import com.traffic.model.TrafficSignal;
-import com.traffic.model.Vehicle;
 
 import javax.swing.JPanel;
 import java.awt.BasicStroke;
@@ -22,10 +15,14 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
-import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Custom 2D Swing canvas that renders the 4-way traffic intersection from a top-down view.
+ *
+ * <p>Thread Safety:
+ * Renders strictly from immutable {@link SimulationSnapshot} objects.
+ * Never holds locks or mutates domain objects directly.
  *
  * <p>Renders:
  * <ul>
@@ -64,6 +61,7 @@ public class IntersectionPanel extends JPanel {
     private static final Color COLOR_RED_CROSS = new Color(192, 57, 43);
 
     private final SimulationEngine engine;
+    private volatile SimulationSnapshot currentSnapshot;
 
     /**
      * Constructs the visualization canvas with a reference to the simulation engine.
@@ -78,6 +76,17 @@ public class IntersectionPanel extends JPanel {
         setBackground(COLOR_GRASS);
         setPreferredSize(new Dimension(600, 600));
         setMinimumSize(new Dimension(400, 400));
+    }
+
+    /**
+     * Updates the local immutable snapshot used for painting.
+     */
+    public void setSnapshot(SimulationSnapshot snapshot) {
+        this.currentSnapshot = snapshot;
+    }
+
+    public SimulationSnapshot getSnapshot() {
+        return currentSnapshot;
     }
 
     @Override
@@ -98,7 +107,11 @@ public class IntersectionPanel extends JPanel {
             roadWidth = 100;
         }
 
-        Intersection intersection = engine.getIntersection();
+        SimulationSnapshot snapshot = this.currentSnapshot;
+        if (snapshot == null) {
+            snapshot = engine.getSnapshot();
+            this.currentSnapshot = snapshot;
+        }
 
         // 1. Draw Crossroads & Road Geometry
         drawRoads(g2d, width, height, centerX, centerY, roadWidth);
@@ -107,13 +120,13 @@ public class IntersectionPanel extends JPanel {
         drawLaneMarkings(g2d, width, height, centerX, centerY, roadWidth);
 
         // 3. Draw Traffic Light Housings & Active Indicators
-        drawTrafficSignals(g2d, intersection, centerX, centerY, roadWidth);
+        drawTrafficSignals(g2d, snapshot, centerX, centerY, roadWidth);
 
         // 4. Draw Vehicles Queued on Approaches
-        drawVehicles(g2d, intersection, centerX, centerY, roadWidth);
+        drawVehicles(g2d, snapshot, centerX, centerY, roadWidth);
 
         // 5. Draw Road Direction Banners & Compass
-        drawBanners(g2d, intersection, width, height, centerX, centerY, roadWidth);
+        drawBanners(g2d, snapshot, width, height, centerX, centerY, roadWidth);
     }
 
     /**
@@ -176,35 +189,39 @@ public class IntersectionPanel extends JPanel {
     /**
      * Draws the 4 traffic signal light boxes at each intersection corner.
      */
-    private void drawTrafficSignals(Graphics2D g2d, Intersection intersection, int centerX, int centerY, int roadWidth) {
+    private void drawTrafficSignals(Graphics2D g2d, SimulationSnapshot snapshot, int centerX, int centerY, int roadWidth) {
         int boxW = 30;
         int boxH = 68;
 
         // North Approach Signal (mounted at North-East corner facing incoming South-bound traffic)
         int northX = centerX + roadWidth / 2 + 8;
         int northY = centerY - roadWidth / 2 - boxH - 4;
-        drawSignalBox(g2d, intersection.getRoad(Direction.NORTH).getSignal(), northX, northY, boxW, boxH);
+        drawSignalBox(g2d, snapshot.getRoad(Direction.NORTH), northX, northY, boxW, boxH);
 
         // East Approach Signal (mounted at South-East corner facing incoming West-bound traffic)
         int eastX = centerX + roadWidth / 2 + 8;
         int eastY = centerY + roadWidth / 2 + 8;
-        drawSignalBox(g2d, intersection.getRoad(Direction.EAST).getSignal(), eastX, eastY, boxW, boxH);
+        drawSignalBox(g2d, snapshot.getRoad(Direction.EAST), eastX, eastY, boxW, boxH);
 
         // South Approach Signal (mounted at South-West corner facing incoming North-bound traffic)
         int southX = centerX - roadWidth / 2 - boxW - 8;
         int southY = centerY + roadWidth / 2 + 8;
-        drawSignalBox(g2d, intersection.getRoad(Direction.SOUTH).getSignal(), southX, southY, boxW, boxH);
+        drawSignalBox(g2d, snapshot.getRoad(Direction.SOUTH), southX, southY, boxW, boxH);
 
         // West Approach Signal (mounted at North-West corner facing incoming East-bound traffic)
         int westX = centerX - roadWidth / 2 - boxW - 8;
         int westY = centerY - roadWidth / 2 - boxH - 4;
-        drawSignalBox(g2d, intersection.getRoad(Direction.WEST).getSignal(), westX, westY, boxW, boxH);
+        drawSignalBox(g2d, snapshot.getRoad(Direction.WEST), westX, westY, boxW, boxH);
     }
 
     /**
      * Renders a single vertical traffic signal box with RED, YELLOW, GREEN bulbs and timer.
      */
-    private void drawSignalBox(Graphics2D g2d, TrafficSignal signal, int x, int y, int w, int h) {
+    private void drawSignalBox(Graphics2D g2d, SimulationSnapshot.RoadSnapshot road, int x, int y, int w, int h) {
+        if (road == null) {
+            return;
+        }
+
         // Outer housing
         g2d.setColor(COLOR_LIGHT_HOUSING);
         g2d.fillRoundRect(x, y, w, h, 10, 10);
@@ -217,7 +234,7 @@ public class IntersectionPanel extends JPanel {
         int yellowY = y + 26;
         int greenY = y + 46;
 
-        SignalColor color = signal.getColor();
+        SignalColor color = road.getSignalColor();
 
         // RED Bulb
         if (color == SignalColor.RED) {
@@ -253,7 +270,7 @@ public class IntersectionPanel extends JPanel {
         if (color != SignalColor.RED) {
             g2d.setColor(Color.WHITE);
             g2d.setFont(new Font("SansSerif", Font.BOLD, 10));
-            String timerStr = signal.getTimer() + "s";
+            String timerStr = road.getSignalTimer() + "s";
             FontMetrics fm = g2d.getFontMetrics();
             int tx = x + (w - fm.stringWidth(timerStr)) / 2;
             g2d.drawString(timerStr, tx, y + h + 12);
@@ -263,65 +280,73 @@ public class IntersectionPanel extends JPanel {
     /**
      * Draws vehicles queued on each of the 4 approaches.
      */
-    private void drawVehicles(Graphics2D g2d, Intersection intersection, int centerX, int centerY, int roadWidth) {
+    private void drawVehicles(Graphics2D g2d, SimulationSnapshot snapshot, int centerX, int centerY, int roadWidth) {
         int laneOffset = roadWidth / 4;
         int vehicleSpacing = 42;
 
         // 1. North Approach (Vehicles heading SOUTH, queued in left lane: centerX - laneOffset)
-        Road north = intersection.getRoad(Direction.NORTH);
-        ArrayList<Vehicle> northVehicles = north.getVehicles();
-        int northStopY = centerY - roadWidth / 2 - 32;
-        for (int i = 0; i < northVehicles.size() && i < 6; i++) {
-            Vehicle v = northVehicles.get(i);
-            int vy = northStopY - (i * vehicleSpacing);
-            drawVehicleBody(g2d, v, centerX - laneOffset, vy, 22, 34, true);
+        SimulationSnapshot.RoadSnapshot north = snapshot.getRoad(Direction.NORTH);
+        if (north != null) {
+            List<SimulationSnapshot.VehicleSnapshot> northVehicles = north.getVehicles();
+            int northStopY = centerY - roadWidth / 2 - 32;
+            for (int i = 0; i < northVehicles.size() && i < 6; i++) {
+                SimulationSnapshot.VehicleSnapshot v = northVehicles.get(i);
+                int vy = northStopY - (i * vehicleSpacing);
+                drawVehicleBody(g2d, v, centerX - laneOffset, vy, 22, 34, true);
+            }
         }
 
         // 2. South Approach (Vehicles heading NORTH, queued in right lane: centerX + laneOffset)
-        Road south = intersection.getRoad(Direction.SOUTH);
-        ArrayList<Vehicle> southVehicles = south.getVehicles();
-        int southStopY = centerY + roadWidth / 2 + 10;
-        for (int i = 0; i < southVehicles.size() && i < 6; i++) {
-            Vehicle v = southVehicles.get(i);
-            int vy = southStopY + (i * vehicleSpacing);
-            drawVehicleBody(g2d, v, centerX + laneOffset, vy, 22, 34, true);
+        SimulationSnapshot.RoadSnapshot south = snapshot.getRoad(Direction.SOUTH);
+        if (south != null) {
+            List<SimulationSnapshot.VehicleSnapshot> southVehicles = south.getVehicles();
+            int southStopY = centerY + roadWidth / 2 + 10;
+            for (int i = 0; i < southVehicles.size() && i < 6; i++) {
+                SimulationSnapshot.VehicleSnapshot v = southVehicles.get(i);
+                int vy = southStopY + (i * vehicleSpacing);
+                drawVehicleBody(g2d, v, centerX + laneOffset, vy, 22, 34, true);
+            }
         }
 
         // 3. West Approach (Vehicles heading EAST, queued in bottom lane: centerY + laneOffset)
-        Road west = intersection.getRoad(Direction.WEST);
-        ArrayList<Vehicle> westVehicles = west.getVehicles();
-        int westStopX = centerX - roadWidth / 2 - 32;
-        for (int i = 0; i < westVehicles.size() && i < 6; i++) {
-            Vehicle v = westVehicles.get(i);
-            int vx = westStopX - (i * vehicleSpacing);
-            drawVehicleBody(g2d, v, vx, centerY + laneOffset, 34, 22, false);
+        SimulationSnapshot.RoadSnapshot west = snapshot.getRoad(Direction.WEST);
+        if (west != null) {
+            List<SimulationSnapshot.VehicleSnapshot> westVehicles = west.getVehicles();
+            int westStopX = centerX - roadWidth / 2 - 32;
+            for (int i = 0; i < westVehicles.size() && i < 6; i++) {
+                SimulationSnapshot.VehicleSnapshot v = westVehicles.get(i);
+                int vx = westStopX - (i * vehicleSpacing);
+                drawVehicleBody(g2d, v, vx, centerY + laneOffset, 34, 22, false);
+            }
         }
 
         // 4. East Approach (Vehicles heading WEST, queued in top lane: centerY - laneOffset)
-        Road east = intersection.getRoad(Direction.EAST);
-        ArrayList<Vehicle> eastVehicles = east.getVehicles();
-        int eastStopX = centerX + roadWidth / 2 + 10;
-        for (int i = 0; i < eastVehicles.size() && i < 6; i++) {
-            Vehicle v = eastVehicles.get(i);
-            int vx = eastStopX + (i * vehicleSpacing);
-            drawVehicleBody(g2d, v, vx, centerY - laneOffset, 34, 22, false);
+        SimulationSnapshot.RoadSnapshot east = snapshot.getRoad(Direction.EAST);
+        if (east != null) {
+            List<SimulationSnapshot.VehicleSnapshot> eastVehicles = east.getVehicles();
+            int eastStopX = centerX + roadWidth / 2 + 10;
+            for (int i = 0; i < eastVehicles.size() && i < 6; i++) {
+                SimulationSnapshot.VehicleSnapshot v = eastVehicles.get(i);
+                int vx = eastStopX + (i * vehicleSpacing);
+                drawVehicleBody(g2d, v, vx, centerY - laneOffset, 34, 22, false);
+            }
         }
     }
 
     /**
      * Renders an individual vehicle box with type-specific color and markings.
      */
-    private void drawVehicleBody(Graphics2D g2d, Vehicle v, int x, int y, int w, int h, boolean vertical) {
+    private void drawVehicleBody(Graphics2D g2d, SimulationSnapshot.VehicleSnapshot v, int x, int y, int w, int h, boolean vertical) {
         int drawX = x - (w / 2);
         int drawY = y - (h / 2);
 
         // Determine color based on vehicle type
         Color bodyColor = COLOR_CAR;
-        if (v instanceof Ambulance) {
+        if (v.isAmbulance()) {
             bodyColor = COLOR_AMBULANCE;
-        } else if (v instanceof Bus) {
+        } else if (v.isBus()) {
             bodyColor = COLOR_BUS;
-        } else if (v instanceof Bike) {
+        } else if (v.isBike()) {
             bodyColor = COLOR_BIKE;
         }
 
@@ -330,7 +355,7 @@ public class IntersectionPanel extends JPanel {
         g2d.fillRoundRect(drawX, drawY, w, h, 6, 6);
 
         // Vehicle border
-        if (v instanceof Ambulance) {
+        if (v.isAmbulance()) {
             // Ambulance has bold red emergency border
             g2d.setColor(new Color(231, 76, 60));
             g2d.setStroke(new BasicStroke(2));
@@ -357,11 +382,11 @@ public class IntersectionPanel extends JPanel {
             idText = idText.substring(0, 6);
         }
 
-        g2d.setColor(v instanceof Ambulance ? Color.BLACK : Color.WHITE);
+        g2d.setColor(v.isAmbulance() ? Color.BLACK : Color.WHITE);
         FontMetrics fm = g2d.getFontMetrics();
         int tx = drawX + (w - fm.stringWidth(idText)) / 2;
         int ty = drawY + (h + fm.getAscent()) / 2 - 1;
-        if (v instanceof Ambulance) {
+        if (v.isAmbulance()) {
             ty = drawY + h - 2; // Position text below red cross
         }
         g2d.drawString(idText, tx, ty);
@@ -370,30 +395,38 @@ public class IntersectionPanel extends JPanel {
     /**
      * Draws road approach banners and informational text.
      */
-    private void drawBanners(Graphics2D g2d, Intersection intersection, int width, int height,
+    private void drawBanners(Graphics2D g2d, SimulationSnapshot snapshot, int width, int height,
                              int centerX, int centerY, int roadWidth) {
         g2d.setFont(new Font("SansSerif", Font.BOLD, 11));
         FontMetrics fm = g2d.getFontMetrics();
 
         // North Label
-        Road north = intersection.getRoad(Direction.NORTH);
-        String northStr = "NORTH APPROACH (" + north.getQueueLength() + ")";
-        drawBadge(g2d, northStr, centerX - fm.stringWidth(northStr) / 2, 22, north.getSignal().isGreen());
+        SimulationSnapshot.RoadSnapshot north = snapshot.getRoad(Direction.NORTH);
+        int northQueue = (north != null) ? north.getQueueLength() : 0;
+        boolean northGreen = (north != null) && north.isGreen();
+        String northStr = "NORTH APPROACH (" + northQueue + ")";
+        drawBadge(g2d, northStr, centerX - fm.stringWidth(northStr) / 2, 22, northGreen);
 
         // South Label
-        Road south = intersection.getRoad(Direction.SOUTH);
-        String southStr = "SOUTH APPROACH (" + south.getQueueLength() + ")";
-        drawBadge(g2d, southStr, centerX - fm.stringWidth(southStr) / 2, height - 12, south.getSignal().isGreen());
+        SimulationSnapshot.RoadSnapshot south = snapshot.getRoad(Direction.SOUTH);
+        int southQueue = (south != null) ? south.getQueueLength() : 0;
+        boolean southGreen = (south != null) && south.isGreen();
+        String southStr = "SOUTH APPROACH (" + southQueue + ")";
+        drawBadge(g2d, southStr, centerX - fm.stringWidth(southStr) / 2, height - 12, southGreen);
 
         // West Label
-        Road west = intersection.getRoad(Direction.WEST);
-        String westStr = "WEST (" + west.getQueueLength() + ")";
-        drawBadge(g2d, westStr, 15, centerY + 5, west.getSignal().isGreen());
+        SimulationSnapshot.RoadSnapshot west = snapshot.getRoad(Direction.WEST);
+        int westQueue = (west != null) ? west.getQueueLength() : 0;
+        boolean westGreen = (west != null) && west.isGreen();
+        String westStr = "WEST (" + westQueue + ")";
+        drawBadge(g2d, westStr, 15, centerY + 5, westGreen);
 
         // East Label
-        Road east = intersection.getRoad(Direction.EAST);
-        String eastStr = "EAST (" + east.getQueueLength() + ")";
-        drawBadge(g2d, eastStr, width - fm.stringWidth(eastStr) - 25, centerY + 5, east.getSignal().isGreen());
+        SimulationSnapshot.RoadSnapshot east = snapshot.getRoad(Direction.EAST);
+        int eastQueue = (east != null) ? east.getQueueLength() : 0;
+        boolean eastGreen = (east != null) && east.isGreen();
+        String eastStr = "EAST (" + eastQueue + ")";
+        drawBadge(g2d, eastStr, width - fm.stringWidth(eastStr) - 25, centerY + 5, eastGreen);
     }
 
     private void drawBadge(Graphics2D g2d, String text, int x, int y, boolean isGreen) {

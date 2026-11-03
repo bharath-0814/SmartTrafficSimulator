@@ -2,6 +2,7 @@ package com.traffic.ui;
 
 import com.traffic.engine.SimulationController;
 import com.traffic.engine.SimulationEngine;
+import com.traffic.engine.SimulationSnapshot;
 import com.traffic.model.Ambulance;
 import com.traffic.model.Bike;
 import com.traffic.model.Bus;
@@ -32,6 +33,8 @@ import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -442,11 +445,14 @@ public class MainFrame extends JFrame {
             }
         });
 
-        // Speed Slider Change Listener
-        speedSlider.addChangeListener(e -> {
-            int newDelay = speedSlider.getValue();
-            controller.setTickDelayMs(newDelay);
-            lblSpeedValue.setText(newDelay + " ms");
+        // Speed Slider Change Listener (Beginner-friendly anonymous inner class)
+        speedSlider.addChangeListener(new ChangeListener() {
+            @Override
+            public void stateChanged(ChangeEvent e) {
+                int newDelay = speedSlider.getValue();
+                controller.setTickDelayMs(newDelay);
+                lblSpeedValue.setText(newDelay + " ms");
+            }
         });
 
         // Inject Vehicle Button
@@ -475,19 +481,11 @@ public class MainFrame extends JFrame {
     }
 
     /**
-     * Injects a new vehicle onto the selected approach road based on UI selections.
+     * Injects a new vehicle onto the selected approach road safely (Thread-safe).
      */
     private void injectSelectedVehicle() {
         int approachIdx = comboApproach.getSelectedIndex();
         int typeIdx = comboVehicleType.getSelectedIndex();
-        Road targetRoad = engine.getIntersection().getRoad(approachIdx);
-
-        if (targetRoad.isFull()) {
-            JOptionPane.showMessageDialog(this,
-                    targetRoad.getName() + " is currently at maximum capacity (" + targetRoad.getMaxCapacity() + ").",
-                    "Road Full", JOptionPane.WARNING_MESSAGE);
-            return;
-        }
 
         Vehicle vehicle;
         int seq = customVehicleSeq++;
@@ -509,7 +507,17 @@ public class MainFrame extends JFrame {
                 break;
         }
 
-        targetRoad.addVehicle(vehicle);
+        // Thread-safe injection via engine method
+        boolean added = engine.addVehicle(approachIdx, vehicle);
+        if (!added) {
+            JOptionPane.showMessageDialog(this,
+                    "Could not add vehicle: Approach road is at maximum capacity.",
+                    "Road Full", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // Immediately update snapshot and repaint so the newly added vehicle shows up instantly
+        intersectionPanel.setSnapshot(engine.getSnapshot());
         intersectionPanel.repaint();
     }
 
@@ -595,12 +603,17 @@ public class MainFrame extends JFrame {
 
     /**
      * Periodic EDT update routine refreshing canvas and statistics.
+     * Consumes an atomic, consistent SimulationSnapshot from the engine.
      */
     private void updateDashboard() {
-        // 1. Repaint 2D intersection
+        // 1. Capture atomic point-in-time snapshot
+        SimulationSnapshot snapshot = engine.getSnapshot();
+
+        // 2. Repaint 2D intersection using the snapshot
+        intersectionPanel.setSnapshot(snapshot);
         intersectionPanel.repaint();
 
-        // 2. Update status badge and button enabled states
+        // 3. Update status badge and button enabled states
         boolean isRunning = controller.isRunning();
         boolean isPaused = controller.isPaused();
 
@@ -630,38 +643,43 @@ public class MainFrame extends JFrame {
             btnStepOnce.setEnabled(false);
         }
 
-        // 3. Update live statistics
-        lblTicksElapsed.setText(engine.getTotalTicks() + " s");
-        Road activeRoad = engine.getIntersection().getRoad(engine.getCurrentGreenIndex());
-        lblActiveApproach.setText(activeRoad.getName());
+        // 4. Update live statistics from safe snapshot
+        lblTicksElapsed.setText(snapshot.getTotalTicks() + " s");
+        SimulationSnapshot.RoadSnapshot activeRoad = snapshot.getActiveRoad();
+        if (activeRoad != null) {
+            lblActiveApproach.setText(activeRoad.getName());
 
-        TrafficSignal signal = activeRoad.getSignal();
-        String signalText = "[" + signal.getColor().name() + "] (" + signal.getTimer() + "s)";
-        lblSignalLight.setText(signalText);
-        if (signal.isGreen()) {
-            lblSignalLight.setForeground(ACCENT_GREEN);
-        } else if (signal.isYellow()) {
-            lblSignalLight.setForeground(ACCENT_AMBER);
-        } else {
-            lblSignalLight.setForeground(ACCENT_RED);
+            String signalText = "[" + activeRoad.getSignalColor().name() + "] (" + activeRoad.getSignalTimer() + "s)";
+            lblSignalLight.setText(signalText);
+            if (activeRoad.isGreen()) {
+                lblSignalLight.setForeground(ACCENT_GREEN);
+            } else if (activeRoad.isYellow()) {
+                lblSignalLight.setForeground(ACCENT_AMBER);
+            } else {
+                lblSignalLight.setForeground(ACCENT_RED);
+            }
+
+            if (activeRoad.isEmergencyOverride()) {
+                lblEmergencyOverride.setText("EMERGENCY ACTIVE");
+                lblEmergencyOverride.setForeground(ACCENT_RED);
+            } else {
+                lblEmergencyOverride.setText("NORMAL (INACTIVE)");
+                lblEmergencyOverride.setForeground(TEXT_MUTED);
+            }
         }
 
-        if (signal.isEmergencyOverride()) {
-            lblEmergencyOverride.setText("EMERGENCY ACTIVE");
-            lblEmergencyOverride.setForeground(ACCENT_RED);
-        } else {
-            lblEmergencyOverride.setText("NORMAL (INACTIVE)");
-            lblEmergencyOverride.setForeground(TEXT_MUTED);
-        }
+        lblVehiclesServed.setText(String.valueOf(snapshot.getTotalVehiclesServed()));
+        lblEmergencyServed.setText(String.valueOf(snapshot.getTotalEmergencyVehiclesServed()));
 
-        lblVehiclesServed.setText(String.valueOf(engine.getTotalVehiclesServed()));
-        lblEmergencyServed.setText(String.valueOf(engine.getTotalEmergencyVehiclesServed()));
+        SimulationSnapshot.RoadSnapshot northRoad = snapshot.getRoad(Direction.NORTH);
+        SimulationSnapshot.RoadSnapshot eastRoad = snapshot.getRoad(Direction.EAST);
+        SimulationSnapshot.RoadSnapshot southRoad = snapshot.getRoad(Direction.SOUTH);
+        SimulationSnapshot.RoadSnapshot westRoad = snapshot.getRoad(Direction.WEST);
 
-        Intersection inter = engine.getIntersection();
-        lblQueueNorth.setText("N: " + inter.getRoad(Direction.NORTH).getQueueLength()
-                + " | E: " + inter.getRoad(Direction.EAST).getQueueLength());
-        lblQueueSouth.setText("S: " + inter.getRoad(Direction.SOUTH).getQueueLength()
-                + " | W: " + inter.getRoad(Direction.WEST).getQueueLength());
+        lblQueueNorth.setText("N: " + (northRoad != null ? northRoad.getQueueLength() : 0)
+                + " | E: " + (eastRoad != null ? eastRoad.getQueueLength() : 0));
+        lblQueueSouth.setText("S: " + (southRoad != null ? southRoad.getQueueLength() : 0)
+                + " | W: " + (westRoad != null ? westRoad.getQueueLength() : 0));
     }
 
     // =========================================================================
