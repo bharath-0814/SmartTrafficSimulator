@@ -51,7 +51,7 @@ public class TrafficSignal {
 
     // --- State and Timer Methods (Thread-safe) ---
 
-    public SignalColor getColor() {
+    public synchronized SignalColor getColor() {
         return color;
     }
 
@@ -59,7 +59,7 @@ public class TrafficSignal {
      * Changes signal color and configures the countdown timer appropriately (Thread-safe).
      * Sequence: RED -> GREEN -> YELLOW -> RED
      */
-    public void changeColor(SignalColor newColor) {
+    public synchronized void changeColor(SignalColor newColor) {
         if (newColor == null) {
             throw new IllegalArgumentException("Signal color cannot be null.");
         }
@@ -74,61 +74,61 @@ public class TrafficSignal {
     }
 
     // Convenient transition helpers for simulation (Thread-safe)
-    public void switchToGreen() {
+    public synchronized void switchToGreen() {
         changeColor(SignalColor.GREEN);
     }
 
-    public void switchToYellow() {
+    public synchronized void switchToYellow() {
         changeColor(SignalColor.YELLOW);
     }
 
-    public void switchToRed() {
+    public synchronized void switchToRed() {
         changeColor(SignalColor.RED);
     }
 
-    public boolean isGreen() {
+    public synchronized boolean isGreen() {
         return this.color == SignalColor.GREEN;
     }
 
-    public boolean isRed() {
+    public synchronized boolean isRed() {
         return this.color == SignalColor.RED;
     }
 
-    public boolean isYellow() {
+    public synchronized boolean isYellow() {
         return this.color == SignalColor.YELLOW;
     }
 
     // Advances the countdown timer by 1 second (Thread-safe)
-    public void tick() {
+    public synchronized void tick() {
         if (timer > 0) {
             timer--;
         }
     }
 
-    public boolean isTimerExpired() {
+    public synchronized boolean isTimerExpired() {
         return timer <= 0;
     }
 
-    public int getTimer() {
+    public synchronized int getTimer() {
         return timer;
     }
 
-    public int getGreenDuration() {
+    public synchronized int getGreenDuration() {
         return greenDuration;
     }
 
-    public void setGreenDuration(int greenDuration) {
+    public synchronized void setGreenDuration(int greenDuration) {
         if (greenDuration <= 0) {
             throw new IllegalArgumentException("Green duration must be positive: " + greenDuration);
         }
         this.greenDuration = greenDuration;
     }
 
-    public int getYellowDuration() {
+    public synchronized int getYellowDuration() {
         return yellowDuration;
     }
 
-    public void setYellowDuration(int yellowDuration) {
+    public synchronized void setYellowDuration(int yellowDuration) {
         if (yellowDuration <= 0) {
             throw new IllegalArgumentException("Yellow duration must be positive: " + yellowDuration);
         }
@@ -137,11 +137,11 @@ public class TrafficSignal {
 
     // --- Emergency Override Controls (Thread-safe) ---
 
-    public boolean isEmergencyOverride() {
+    public synchronized boolean isEmergencyOverride() {
         return emergencyOverride;
     }
 
-    public void setEmergencyOverride(boolean emergencyOverride) {
+    public synchronized void setEmergencyOverride(boolean emergencyOverride) {
         this.emergencyOverride = emergencyOverride;
     }
 
@@ -151,4 +151,3 @@ public class TrafficSignal {
                 + (emergencyOverride ? ", EMERGENCY_OVERRIDE" : "") + "]";
     }
 }
-

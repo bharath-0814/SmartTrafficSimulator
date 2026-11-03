@@ -123,7 +123,7 @@ public class SimulationEngine {
      * 3. Increments waiting times for vehicles waiting on RED roads.
      * 4. Updates statistics and logs the event.
      */
-    public void tick() {
+    public synchronized void tick() {
         totalTicks++;
         lastEventDescription = "Normal traffic flow.";
 
@@ -211,7 +211,7 @@ public class SimulationEngine {
      *
      * @param numberOfTicks Number of seconds to simulate.
      */
-    public void step(int numberOfTicks) {
+    public synchronized void step(int numberOfTicks) {
         if (numberOfTicks <= 0) {
             throw new IllegalArgumentException("Number of ticks must be positive: " + numberOfTicks);
         }
@@ -357,57 +357,57 @@ public class SimulationEngine {
     // Inspection & State Accessors (Thread-safe)
     // =========================================================================
 
-    public Intersection getIntersection() {
+    public synchronized Intersection getIntersection() {
         return intersection;
     }
 
-    public int getCurrentGreenIndex() {
+    public synchronized int getCurrentGreenIndex() {
         return currentGreenIndex;
     }
 
-    public Road getCurrentActiveRoad() {
+    public synchronized Road getCurrentActiveRoad() {
         return intersection.getRoad(currentGreenIndex);
     }
 
-    public int getTotalVehiclesServed() {
+    public synchronized int getTotalVehiclesServed() {
         return totalVehiclesServed;
     }
 
-    public int getTotalEmergencyVehiclesServed() {
+    public synchronized int getTotalEmergencyVehiclesServed() {
         return totalEmergencyVehiclesServed;
     }
 
-    public int getTotalTicks() {
+    public synchronized int getTotalTicks() {
         return totalTicks;
     }
 
-    public int getGreenDuration() {
+    public synchronized int getGreenDuration() {
         return greenDuration;
     }
 
-    public int getYellowDuration() {
+    public synchronized int getYellowDuration() {
         return yellowDuration;
     }
 
-    public int getStarvationThreshold() {
+    public synchronized int getStarvationThreshold() {
         return starvationThreshold;
     }
 
-    public void setStarvationThreshold(int starvationThreshold) {
+    public synchronized void setStarvationThreshold(int starvationThreshold) {
         if (starvationThreshold <= 0) {
             throw new IllegalArgumentException("Starvation threshold must be positive: " + starvationThreshold);
         }
         this.starvationThreshold = starvationThreshold;
     }
 
-    public String getLastEventDescription() {
+    public synchronized String getLastEventDescription() {
         return lastEventDescription;
     }
 
     /**
      * Checks if any approach is currently in an active emergency override state (Thread-safe).
      */
-    public boolean isEmergencyActive() {
+    public synchronized boolean isEmergencyActive() {
         for (int i = 0; i < intersection.getRoadCount(); i++) {
             if (intersection.getRoad(i).getSignal().isEmergencyOverride()) {
                 return true;
@@ -484,4 +484,3 @@ public class SimulationEngine {
         return text.substring(0, maxLength - 3) + "...";
     }
 }
-

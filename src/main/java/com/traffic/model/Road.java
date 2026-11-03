@@ -50,7 +50,7 @@ public class Road {
     }
 
     // Adds a vehicle to the back of the waiting queue (Thread-safe)
-    public boolean addVehicle(Vehicle v) {
+    public synchronized boolean addVehicle(Vehicle v) {
         if (v == null) {
             return false;
         }
@@ -71,7 +71,7 @@ public class Road {
      * emergency vehicles exist, the one with highest urgency departs first.
      * When no emergency vehicles are present, vehicles depart in normal FIFO order.
      */
-    public Vehicle removeVehicle() {
+    public synchronized Vehicle removeVehicle() {
         if (queue.isEmpty()) {
             return null;
         }
@@ -105,7 +105,7 @@ public class Road {
     /**
      * Peeks at the next vehicle scheduled to depart without removing it (Thread-safe).
      */
-    public Vehicle peekVehicle() {
+    public synchronized Vehicle peekVehicle() {
         if (queue.isEmpty()) {
             return null;
         }
@@ -134,7 +134,7 @@ public class Road {
     }
 
     // Safely retrieves a vehicle at a specific queue position without removing it (Thread-safe)
-    public Vehicle getVehicle(int index) {
+    public synchronized Vehicle getVehicle(int index) {
         if (index >= 0 && index < queue.size()) {
             return queue.get(index);
         }
@@ -142,7 +142,7 @@ public class Road {
     }
 
     // Checks if any vehicle currently waiting in line is an emergency vehicle (Thread-safe)
-    public boolean hasEmergencyVehicle() {
+    public synchronized boolean hasEmergencyVehicle() {
         for (Vehicle v : queue) {
             if (v.isEmergency()) {
                 return true; // Found an ambulance!
@@ -151,7 +151,7 @@ public class Road {
         return false;
     }
 
-    public int getQueueLength() {
+    public synchronized int getQueueLength() {
         return queue.size();
     }
 
@@ -159,11 +159,11 @@ public class Road {
         return maxCapacity;
     }
 
-    public boolean isFull() {
+    public synchronized boolean isFull() {
         return queue.size() >= maxCapacity;
     }
 
-    public boolean isEmpty() {
+    public synchronized boolean isEmpty() {
         return queue.isEmpty();
     }
 
@@ -183,7 +183,7 @@ public class Road {
      * Returns a copy of the vehicle queue to protect internal state (Encapsulation & Thread-safe).
      * Outside code modifying the returned list will NOT affect the road's actual queue.
      */
-    public ArrayList<Vehicle> getVehicles() {
+    public synchronized ArrayList<Vehicle> getVehicles() {
         return new ArrayList<>(queue);
     }
 
@@ -192,4 +192,3 @@ public class Road {
         return name + " (" + direction + ") [Queue: " + queue.size() + "/" + maxCapacity + ", Light: " + signal.getColor() + "]";
     }
 }
-
