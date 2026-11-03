@@ -145,4 +145,4 @@ java -cp target/classes com.traffic.app.Main
 * [x] **Phase 4: File Handling & Exception Handling** (`ReportService`, custom `ReportException`, `FileWriter`, `FileReader`, `BufferedReader`, `finally` cleanup) *(Completed & Verified with 30 Tests)*
 * [x] **Phase 5: Multithreading** (`SimulationController implements Runnable`, background `Thread`, `Thread.sleep()`, thread-safe `pause()`/`resume()`, `stop()`, `join()`, `volatile` flags) *(Completed & Verified with 41 Tests)*
 * [x] **Phase 6: Swing GUI & Visualization** (`MainFrame`, `IntersectionPanel`, top-down 2D canvas, live controls, vehicle injection, report viewer) *(Completed & Verified with 46 Tests)*
-* [x] **Phase 7: Testing, Polish & Viva Preparation** (Comprehensive unit test verification and final viva review)
+* [x] **Phase 7: Thread Safety & Snapshot Architecture** (`SimulationSnapshot`, thread-safe vehicle injection, comprehensive test suite & polish) *(Completed & Verified with 52 Tests)*

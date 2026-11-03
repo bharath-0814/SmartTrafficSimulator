@@ -2,6 +2,7 @@
 
 > **Course:** CSC2104 — Object Oriented Programming (3rd Semester B.Tech CSE)  
 > **Target Audience:** Absolute beginner in Java & OOP.  
+> **Verified Test Suite:** 52 Automated Unit Tests (100% Passing)  
 > **Purpose:** Teach you the entire codebase from absolute scratch so you can confidently code, debug, explain, and defend this project in your university viva voce.
 
 ---
